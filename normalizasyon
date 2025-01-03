@@ -1,0 +1,30 @@
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+# Veri seti yolları
+train_dir = "C:/Users/yunus emre/Desktop/Proje 2. kısım/2-sınıflanmış_veriler1/dataset/train"
+test_dir = "C:/Users/yunus emre/Desktop/Proje 2. kısım/2-sınıflanmış_veriler1/dataset/test"
+
+# Normalizasyon için ImageDataGenerator
+train_datagen = ImageDataGenerator(rescale=1.0 / 255)  # Piksel değerlerini [0, 1] aralığına getir
+test_datagen = ImageDataGenerator(rescale=1.0 / 255)
+
+# Eğitim ve test veri setlerini oluştur
+img_height, img_width = 224, 224  # Görsellerin yeniden boyutlandırılacağı boyut
+batch_size = 32  # Eğitim sırasında kullanılacak örnek grubu büyüklüğü
+
+train_data = train_datagen.flow_from_directory(
+    train_dir,
+    target_size=(img_height, img_width),
+    batch_size=batch_size,
+    class_mode="binary"  # İkili sınıflandırma
+)
+
+test_data = test_datagen.flow_from_directory(
+    test_dir,
+    target_size=(img_height, img_width),
+    batch_size=batch_size,
+    class_mode="binary"
+)
+
+print("Veriler başarıyla yüklendi ve normalize edildi!")
