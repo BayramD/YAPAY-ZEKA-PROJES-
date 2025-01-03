@@ -1,0 +1,29 @@
+import os
+import shutil
+
+# Tüm görsellerin bulunduğu klasör
+image_folder = "C:/Users/yunus emre/Desktop/Proje 2. kısım/1-temizlenmiş_veriler1"
+output_folder = "C:/Users/yunus emre/Desktop/Proje 2. kısım/2-sınıflanmış_veriler1"
+os.makedirs(output_folder, exist_ok=True)
+
+# Hedef klasörler
+broken_folder = os.path.join(output_folder, "kırık")
+healthy_folder = os.path.join(output_folder, "sağlıklı")
+os.makedirs(broken_folder, exist_ok=True)
+os.makedirs(healthy_folder, exist_ok=True)
+
+
+# Sınıf anahtar kelimeleri
+broken_keywords = ["kırık", "broken", "الأشعة السينية للعظام "]
+healthy_keywords = ["sağlıklı", "cervical", "chest", "foot", "hip", "omurga", "hueso", "ray"]
+
+# Görselleri ayırma
+for filename in os.listdir(image_folder):
+    filepath = os.path.join(image_folder, filename)
+    filename_lower = filename.lower()  # Küçük harf yaparak kontrol kolaylığı
+    if any(keyword in filename_lower for keyword in broken_keywords):
+        shutil.move(filepath, os.path.join(broken_folder, filename))
+    elif any(keyword in filename_lower for keyword in healthy_keywords):
+        shutil.move(filepath, os.path.join(healthy_folder, filename))
+
+print("Görseller sınıflara göre ayrıldı!")
