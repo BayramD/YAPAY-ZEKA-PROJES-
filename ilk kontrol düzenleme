@@ -1,0 +1,29 @@
+import os
+from PIL import Image
+
+# Görüntü klasörü
+image_folder = "C:/Users/yunus emre/Desktop/temizlenmiş veriler"
+clean_folder = "C:/Users/yunus emre/Desktop/temizlenmiş_veriler1"
+os.makedirs(clean_folder, exist_ok=True)
+
+# Dosyaları kontrol edip temizleme
+broken_files = []
+processed_count = 0
+
+for filename in os.listdir(image_folder):
+    filepath = os.path.join(image_folder, filename)
+    try:
+        # Görüntüyü açma ve işleme
+        with Image.open(filepath) as img:
+            img = img.convert("L")  # Siyah-beyaz doğrulama (gri tonlama)
+            img = img.resize((224, 224))  # Görüntüyü 224x224 boyutlandırma
+            # İşlenmiş görüntüyü kaydetme
+            save_path = os.path.join(clean_folder, filename)
+            img.save(save_path, format="JPEG")
+            processed_count += 1
+    except Exception as e:
+        broken_files.append(filename)
+
+# Sonuçları yazdırma
+print(f"Toplam işlenen dosya: {processed_count}")
+print(f"Kırık dosyalar: {broken_files}")
