@@ -1,0 +1,128 @@
+import os
+import numpy as np
+from transformers import ViTForImageClassification
+from transformers import ViTFeatureExtractor, TrainingArguments, Trainer
+from datasets import Dataset
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+from PIL import Image
+import json
+
+# Çalışma klasörü
+os.chdir('/content/drive/My Drive/dataset/')
+print("Çalışma klasörü ayarlandı:", os.getcwd())
+
+# Görsel boyutları ve batch size
+IMG_HEIGHT, IMG_WIDTH = 224, 224  # ViT'in varsayılan giriş boyutu
+BATCH_SIZE = 32
+
+# Eğitim ve test klasör yolları
+train_dir = "./train"
+test_dir = "./test"
+
+# Özellik çıkarıcı (feature extractor)
+feature_extractor = ViTFeatureExtractor.from_pretrained('google/vit-base-patch16-224-in21k')
+
+# Verilerin hazırlanması
+def preprocess_images_and_labels(data_dir):
+    images, labels = [], []
+    class_labels = {'kırık': 0, 'sağlıklı': 1}  # Sınıf eşlemeleri
+    for class_name, label in class_labels.items():
+        class_path = os.path.join(data_dir, class_name)
+        for image_name in os.listdir(class_path):
+            image_path = os.path.join(class_path, image_name)
+            try:
+                image = Image.open(image_path).convert("RGB").resize((IMG_WIDTH, IMG_HEIGHT))
+                images.append(np.array(image))
+                labels.append(label)
+            except Exception as e:
+                print(f"Error loading image {image_path}: {e}")
+    return images, labels
+
+# Eğitim ve test verilerini yükleme
+train_images, train_labels = preprocess_images_and_labels(train_dir)
+test_images, test_labels = preprocess_images_and_labels(test_dir)
+
+# Verileri özellik çıkarıcıdan geçir
+train_features = feature_extractor(images=train_images, return_tensors='pt', padding=True)
+test_features = feature_extractor(images=test_images, return_tensors='pt', padding=True)
+
+# Verileri Hugging Face formatına dönüştürme
+train_dataset = Dataset.from_dict({
+    'pixel_values': train_features['pixel_values'].numpy(),  # NumPy yerine Torch formatı
+    'labels': train_labels
+})
+
+test_dataset = Dataset.from_dict({
+    'pixel_values': test_features['pixel_values'].numpy(),  # NumPy yerine Torch formatı
+    'labels': test_labels
+})
+
+
+# modelleri yüklemek için:
+models = {
+    'ViT': ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k', num_labels=2)
+}
+
+# Eğitim parametrelerini ayarlama
+training_args = TrainingArguments(
+    output_dir='./results',  # Çıktı dizini
+    evaluation_strategy="epoch",
+    learning_rate=2e-5,
+    per_device_train_batch_size=BATCH_SIZE,
+    per_device_eval_batch_size=BATCH_SIZE,
+    num_train_epochs=5,
+    weight_decay=0.01,
+    logging_dir='./logs',
+    logging_steps=10,
+    save_steps=100,
+    save_total_limit=2
+)
+
+# Metrikleri hesaplayan fonksiyon
+def compute_metrics(pred):
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(axis=-1)
+
+    accuracy = accuracy_score(labels, preds)
+    precision = precision_score(labels, preds)
+    recall = recall_score(labels, preds)
+    f1 = f1_score(labels, preds)
+
+    # ROC ve AUC hesaplama
+    auc = roc_auc_score(labels, preds)
+
+    # Confusion Matrix
+    cm = confusion_matrix(labels, preds)
+    cm_list = cm.tolist()  # Confusion Matrix'i listeye dönüştür
+
+    return {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1': f1,
+        'auc': auc,
+        'confusion_matrix': cm_list  # Liste olarak döndür
+    }
+
+# Her bir model için eğitimi başlatma ve sonuçları yazdırma
+for model_name, model in models.items():
+    print(f"Model: {model_name}")
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
+        compute_metrics=compute_metrics
+    )
+
+    trainer.train()
+
+    # Eğitim sonuçları
+    print(f"Model {model_name} eğitimi tamamlandı!")
+
+    # Değerlendirme sonuçları
+    print(f"Değerlendirme sonuçları ({model_name}):")
+    results = trainer.evaluate()
+    print(results)
+    print("=" * 50)
